@@ -4,66 +4,70 @@
  */
 package com.mycompany.cybershieldaiweb;
 
+import com.mycompany.cybershieldaiweb.util.DatabaseUtil;  // Ahora importa DatabaseUtil en lugar de conexion
+import com.mycompany.cybershieldaiweb.model.Usuario;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 /**
  * Servlet que maneja el procesamiento del formulario de inicio de sesión.
  * Redirige al usuario a la página correspondiente en función de la autenticación.
- *
- * @author jjer
  */
-@WebServlet("/procesarFormulario") // Ruta URL donde se mapea este servlet
-        
-      public class FormularioServlet extends HttpServlet {
-    // Credenciales válidas (hard-coded para simplicidad)
-    private static final String USUARIO_VALIDO = "jessica@gmail.com";
-    private static final String CLAVE_VALIDA = "12345678";
- /**
-     * Maneja las solicitudes GET redirigiendo al usuario al formulario de inicio de sesión.
-     *
-     * @param request  El objeto HttpServletRequest que contiene la solicitud del cliente
-     * @param response El objeto HttpServletResponse que contiene la respuesta del servlet
-     * @throws ServletException Si ocurre un error específico del servlet
-     * @throws IOException Si ocurre un error de entrada/salida
-     */
-    @Override
+@WebServlet("/procesarFormulario")
+public class FormularioServlet extends HttpServlet {
 
+    @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // Redirige a la página de inicio de sesión (index.html) cuando se accede a través de GET
+        // Redirigir a la página de inicio de sesión si se accede por GET
         response.sendRedirect("index.html");
     }
 
-    /**
-     * Maneja las solicitudes POST procesando los datos del formulario de inicio de sesión.
-     * 
-     * @param request  El objeto HttpServletRequest que contiene la solicitud del cliente
-     * @param response El objeto HttpServletResponse que contiene la respuesta del servlet
-     * @throws ServletException Si ocurre un error específico del servlet
-     * @throws IOException Si ocurre un error de entrada/salida
-     */
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         // Recupera los parámetros 'usuario' y 'clave' del formulario
-        String usuario = request.getParameter("usuario");
-        String clave = request.getParameter("clave");
-        
-        // Verifica si las credenciales proporcionadas son correctas
-        if (USUARIO_VALIDO.equals(usuario) && CLAVE_VALIDA.equals(clave)) {
-            // Si las credenciales son correctas, redirige a la página 'bienvenido.jsp'
-            request.getRequestDispatcher("bienvenido.jsp").forward(request, response);
+        String email = request.getParameter("usuario");
+        String password = request.getParameter("clave");
+        // Conectar a la base de datos para verificar credenciales usando DatabaseUtil
+        try (Connection conn = DatabaseUtil.getConnection()) {  // Aquí cambia conexion por DatabaseUtil
+            String sql = "SELECT * FROM usuario WHERE Correo_Electronico = ? AND Contraseña = ?";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, email);
+            stmt.setString(2, password);
+            ResultSet rs = stmt.executeQuery();
 
-        } else {
-            // Si las credenciales son incorrectas, establece un mensaje de error y redirige a 'error.jsp'
-            request.setAttribute("error", "Usuario o Clave incorrectos"); // Mensaje de error a mostrar
-            request.setAttribute ("errorExist", true); // Indica que hay un error presente
-            request.getRequestDispatcher("error.jsp").forward(request, response);
+            if (rs.next()) {
+                // Credenciales correctas, crear un objeto Usuario y almacenarlo en la sesión
+                Usuario usuario = new Usuario();
+                usuario.setIdUsuario(rs.getInt("idUsuario"));
+                usuario.setNombre(rs.getString("Nombre"));
+                usuario.setCorreoElectronico(rs.getString("Correo_Electronico"));
+                usuario.setRol(rs.getString("Rol"));
+                
+                HttpSession session = request.getSession();
+                session.setAttribute("usuario", usuario); // Guardar el objeto completo del usuario en la sesión
+
+                // Redirige a la página 'bienvenido.jsp'
+                request.getRequestDispatcher("bienvenido.jsp").forward(request, response);
+            } else {
+                // Credenciales incorrectas, redirige a 'error.jsp'
+                request.setAttribute("error", "Usuario o Clave incorrectos");
+                request.getRequestDispatcher("error.jsp").forward(request, response);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.setContentType("text/html");
+            PrintWriter out = response.getWriter();
+            out.println("<h3>Error al conectar con la base de datos: " + e.getMessage() + "</h3>");
         }
-
     }
 }

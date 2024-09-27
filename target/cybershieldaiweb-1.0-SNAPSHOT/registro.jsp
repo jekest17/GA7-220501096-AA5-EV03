@@ -24,16 +24,24 @@
             <h1>Registro de Usuario</h1>
             <p>Crea tu cuenta para acceder a CyberShield AI.</p>
 
+            <!-- Mostrar mensajes de error si existen -->
+            <%
+                String mensajeError = (String) request.getAttribute("mensajeError");
+                if (mensajeError != null) {
+                    out.println("<div class='error-message'>" + mensajeError + "</div>");
+                }
+            %>
+
             <!-- Formulario de Registro -->
             <form action="registrarUsuario" method="post">
                 <div class="input-group">
                     <label for="nombre">Nombre:</label>
-                    <input type="text" id="nombre" name="nombre" placeholder="Tu Nombre" required>
+                    <input type="text" id="nombre" name="nombre" value="<%= request.getAttribute("nombre") != null ? request.getAttribute("nombre") : "" %>" placeholder="Tu Nombre" required>
                 </div>
 
                 <div class="input-group">
                     <label for="correo">Correo Electrónico:</label>
-                    <input type="email" id="correo" name="correo" placeholder="correo@company.com" required>
+                    <input type="email" id="correo" name="correo" value="<%= request.getAttribute("correo") != null ? request.getAttribute("correo") : "" %>" placeholder="correo@company.com" required>
                 </div>
 
                 <div class="input-group">
@@ -55,5 +63,3 @@
     </div>
 </body>
 </html>
-
-
